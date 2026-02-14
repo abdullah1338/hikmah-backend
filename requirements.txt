@@ -1,5 +1,4 @@
 fastapi
 uvicorn
 sentence-transformers
---index-url https://www.google.com/search?q=https://download.pytorch.org/whl/cpu
-torch
+torch --index-url https://download.pytorch.org/whl/cpu
