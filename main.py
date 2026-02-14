@@ -1,62 +1,52 @@
 import os
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from sentence_transformers import SentenceTransformer, util
-import torch
+from sentence_transformers import SentenceTransformer
 from fastapi.middleware.cors import CORSMiddleware
 
-# 1. FastAPI App initialize karna
-app = FastAPI(title="Hikmah AI Cloud Backend")
+# 1. FastAPI initialize karna
+app = FastAPI()
 
-# 2. CORS Setting: Ye boht zaroori hai taake mobile app cloud se connect ho sake
+# CORS allow karna taake mobile app connect ho sake
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Sab origins ko ijazat dena
-    allow_credentials=True,
-    allow_methods=["*"], # GET, POST sab allow karna
+    allow_origins=["*"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 3. AI Model load karna (Semantic Search ke liye)
-# Jab ye pehli baar chalega, model download hone mein thora waqt lagega
-print("AI Model loading...")
-model = SentenceTransformer('all-MiniLM-L6-v2')
-print("Model Ready!")
+# 2. Model ko "Halka" tareeqay se load karna
+# Hum sirf CPU version load karenge taake RAM kam kharch ho
+print("Halka AI Model load ho raha hai...")
+try:
+    # 'all-MiniLM-L6-v2' sabse chota aur tez model hai
+    model = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
+    print("Model Successfully Loaded!")
+except Exception as e:
+    print(f"Model Load Error: {e}")
+    model = None
 
 class ChatRequest(BaseModel):
     text: str
 
-# Health Check: Check karne ke liye ke server on hai ya nahi
 @app.get("/")
-def health_check():
-    return {"status": "Hikmah AI is Online and Running on Cloud"}
+def home():
+    return {"status": "Hikmah AI is Online", "model_loaded": model is not None}
 
-# Chat Endpoint: Yahan se mobile app baat karegi
 @app.post("/chat")
 async def chat(request: ChatRequest):
-    try:
-        user_input = request.text
-        
-        if not user_input:
-            raise HTTPException(status_code=400, detail="Empty message")
+    if model is None:
+        return {"response": "System thori dair mein tayyar ho jaye ga. Dubara koshish karein."}
+    
+    user_input = request.text
+    # Filhal simple response, data integration hum end mein karenge
+    return {
+        "response": f"Hikmah AI (Cloud): Aapne pucha '{user_input}'. Main live hoon aur aapka sawal mujh tak pahunch gaya hai.",
+        "source": "Cloud Server"
+    }
 
-        # Filhal dummy response, jab dataset aayega toh hum semantic search use karenge
-        # Lekin backend ka dhancha (structure) professional ho gaya hai
-        response_text = f"Hikmah AI: JazakAllah! Main aapke sawal '{user_input}' ka jawab jald hi dataset se nikalunga."
-        
-        return {
-            "response": response_text,
-            "status": "success",
-            "source": "Cloud Intelligence"
-        }
-    except Exception as e:
-        print(f"Error: {e}")
-        return {"response": "System mein error hai, dobara koshish karein.", "status": "error"}
-
-# 4. Running Logic: Ye part Render/Cloud ke liye boht zaroori hai
+# 3. Port setting (Koyeb/Render ke liye zaroori)
 if __name__ == "__main__":
     import uvicorn
-    # Cloud platforms 'PORT' environment variable provide karte hain
     port = int(os.environ.get("PORT", 8000))
-    # host 0.0.0.0 ka matlab hai ke ye poore internet par listen karega
     uvicorn.run(app, host="0.0.0.0", port=port)
